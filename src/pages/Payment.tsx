@@ -263,6 +263,210 @@
 // };
 
 // export default Payment;
+// import React, { useState, useEffect } from 'react';
+// import { useParams, useNavigate } from 'react-router-dom';
+// import { Calendar, MapPin, Users, Crown, Ticket } from 'lucide-react';
+// import { useEventStore } from '../store/eventStore';
+// import { useAuthStore } from '../store/authStore';
+// import { makePaymentWithTelos } from '../utils/web3';
+// import { initializeRazorpay } from '../utils/razorpay';
+// import toast from 'react-hot-toast';
+
+// const DEFAULT_RECEIVER_ADDRESS = '0xF5FeFBf4eE405d61eFa05870357ca86b14196462';
+
+// const Payment = () => {
+//   const { id } = useParams();
+//   const navigate = useNavigate();
+//   const { events } = useEventStore();
+//   const { isAuthenticated, user, addTicket } = useAuthStore();
+//   const [selectedTicket, setSelectedTicket] = useState('general');
+//   const [quantity, setQuantity] = useState(1);
+//   const [isProcessing, setIsProcessing] = useState(false);
+
+//   const event = events.find(e => e.id === id);
+
+//   useEffect(() => {
+//     if (!isAuthenticated) {
+//       toast.error('Please login to continue');
+//       navigate('/login');
+//     }
+//   }, [isAuthenticated, navigate]);
+
+//   if (!event) {
+//     return <div className="text-center text-red-600 font-bold text-xl mt-10">Event not found!</div>;
+//   }
+
+//   const handlePaymentSuccess = async (txHash?: string) => {
+//     const loadingToast = toast.loading('Processing your ticket...');
+    
+//     try {
+//       // Simulate a 3-second processing delay
+//       await new Promise(resolve => setTimeout(resolve, 3000));
+
+//       const newTicket = {
+//         id: `ticket_${Date.now()}`,
+//         eventId: event.id,
+//         type: selectedTicket,
+//         quantity,
+//         totalPrice: event.price[selectedTicket as keyof typeof event.price] * quantity,
+//         purchaseDate: new Date().toISOString(),
+//         transactionHash: txHash || 'N/A',
+//         event: {
+//           title: event.title,
+//           date: event.date,
+//           time: event.time,
+//           venue: event.venue,
+//           image: event.image,
+//         },
+//       };
+
+//       await addTicket(newTicket);
+
+//       // Dismiss loading toast and show success
+//       toast.dismiss(loadingToast);
+//       toast.success('🎟️ Ticket purchased successfully!');
+      
+//       // Navigate to dashboard
+//       navigate('/dashboard');
+//     } catch (error) {
+//       toast.dismiss(loadingToast);
+//       toast.error('Failed to process ticket. Please try again.');
+//       console.error('Ticket processing error:', error);
+//     } finally {
+//       setIsProcessing(false);
+//     }
+//   };
+
+//   const handlePaymentWithTelos = async () => {
+//     if (!isAuthenticated) {
+//       toast.error('Please login first');
+//       navigate('/login');
+//       return;
+//     }
+
+//     setIsProcessing(true);
+//     const processingToast = toast.loading('⏳ Processing payment...');
+
+//     try {
+//       const amount = event.price[selectedTicket as keyof typeof event.price] * quantity;
+//       const receiverAddress = event.organizerWallet || DEFAULT_RECEIVER_ADDRESS;
+//       const txHash = await makePaymentWithTelos(amount, receiverAddress);
+//       console.log('Transaction hash:', txHash);
+      
+//       toast.dismiss(processingToast);
+//       await handlePaymentSuccess(txHash);
+//     } catch (error: any) {
+//       setIsProcessing(false);
+//       toast.dismiss(processingToast);
+//       toast.error(error.message || '❌ Payment failed. Please try again.');
+//       console.error('Payment failed:', error);
+//     }
+//   };
+
+//   const handlePaymentWithRazorpay = async () => {
+//     if (!isAuthenticated) {
+//       toast.error('Please login first');
+//       navigate('/login');
+//       return;
+//     }
+
+//     setIsProcessing(true);
+//     const processingToast = toast.loading('🔄 Initializing payment...');
+
+//     try {
+//       const amount = event.price[selectedTicket as keyof typeof event.price] * quantity * 100;
+      
+//       const options = {
+//         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+//         amount,
+//         currency: 'INR',
+//         name: 'EventTix',
+//         description: `Tickets for ${event.title}`,
+//         handler: async function () {
+//           toast.dismiss(processingToast);
+//           await handlePaymentSuccess();
+//         },
+//         prefill: {
+//           email: user?.email || '',
+//           contact: '',
+//         },
+//         theme: {
+//           color: '#4F46E5',
+//         },
+//         modal: {
+//           ondismiss: function() {
+//             setIsProcessing(false);
+//             toast.dismiss(processingToast);
+//           }
+//         }
+//       };
+
+//       const rzp = await initializeRazorpay(options);
+//       rzp.open();
+//     } catch (error) {
+//       setIsProcessing(false);
+//       toast.dismiss(processingToast);
+//       toast.error('⚠️ Payment failed. Please try again.');
+//       console.error('Payment failed:', error);
+//     }
+//   };
+
+//   return (
+//     <div className="min-h-screen bg-gray-50 py-12">
+//       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+//         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+//           <div className="md:flex">
+//             {/* Event Details */}
+//             <div className="md:w-1/2 p-8">
+//               <h2 className="text-2xl font-bold text-gray-900 mb-4">{event.title}</h2>
+              
+//               <div className="flex items-center text-gray-600 mb-4">
+//                 <Calendar className="w-5 h-5 mr-2" />
+//                 <span>{event.date} at {event.time}</span>
+//               </div>
+              
+//               <div className="flex items-center text-gray-600 mb-6">
+//                 <MapPin className="w-5 h-5 mr-2" />
+//                 <span>{event.venue}</span>
+//               </div>
+//             </div>
+
+//             {/* Payment Section */}
+//             <div className="md:w-1/2 bg-gray-50 p-8">
+//               <h3 className="text-lg font-semibold text-gray-900 mb-2">Order Summary</h3>
+//               <div className="space-y-2 text-sm text-gray-600">
+//                 <div className="flex justify-between">
+//                   <span>Ticket Type:</span>
+//                   <span className="capitalize">{selectedTicket}</span>
+//                 </div>
+//                 <div className="flex justify-between">
+//                   <span>Quantity:</span>
+//                   <span>{quantity}</span>
+//                 </div>
+//                 <div className="flex justify-between font-semibold text-gray-900 text-lg pt-2 border-t">
+//                   <span>Total Amount:</span>
+//                   <span>${(event.price[selectedTicket as keyof typeof event.price] * quantity).toFixed(2)}</span>
+//                 </div>
+//               </div>
+
+//               <div className="space-y-4">
+//                 <button onClick={handlePaymentWithTelos} disabled={isProcessing} className="w-full py-3 px-4 text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
+//                   {isProcessing ? 'Processing...' : 'Pay with Telos'}
+//                 </button>
+//                 <button onClick={handlePaymentWithRazorpay} disabled={isProcessing} className="w-full py-3 px-4 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50">
+//                   {isProcessing ? 'Processing...' : 'Pay with Razorpay'}
+//                 </button>
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default Payment;
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Users, Crown, Ticket } from 'lucide-react';
@@ -282,6 +486,7 @@ const Payment = () => {
   const [selectedTicket, setSelectedTicket] = useState('general');
   const [quantity, setQuantity] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [ticketGenerated, setTicketGenerated] = useState(false);
 
   const event = events.find(e => e.id === id);
 
@@ -296,11 +501,11 @@ const Payment = () => {
     return <div className="text-center text-red-600 font-bold text-xl mt-10">Event not found!</div>;
   }
 
-  const handlePaymentSuccess = async (txHash?: string) => {
-    const loadingToast = toast.loading('Processing your ticket...');
-    
+  const generateTicket = async () => {
+    setIsProcessing(true);
+    toast.loading('Processing ticket...');
+
     try {
-      // Simulate a 3-second processing delay
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       const newTicket = {
@@ -310,7 +515,6 @@ const Payment = () => {
         quantity,
         totalPrice: event.price[selectedTicket as keyof typeof event.price] * quantity,
         purchaseDate: new Date().toISOString(),
-        transactionHash: txHash || 'N/A',
         event: {
           title: event.title,
           date: event.date,
@@ -321,16 +525,14 @@ const Payment = () => {
       };
 
       await addTicket(newTicket);
-
-      // Dismiss loading toast and show success
-      toast.dismiss(loadingToast);
+      toast.dismiss();
       toast.success('🎟️ Ticket purchased successfully!');
-      
-      // Navigate to dashboard
-      navigate('/dashboard');
+      setTicketGenerated(true);
+
+      setTimeout(() => navigate('/dashboard'), 2000);
     } catch (error) {
-      toast.dismiss(loadingToast);
-      toast.error('Failed to process ticket. Please try again.');
+      toast.dismiss();
+      toast.error('Failed to process ticket.');
       console.error('Ticket processing error:', error);
     } finally {
       setIsProcessing(false);
@@ -345,21 +547,20 @@ const Payment = () => {
     }
 
     setIsProcessing(true);
-    const processingToast = toast.loading('⏳ Processing payment...');
+    toast.loading('⏳ Processing payment...');
 
     try {
       const amount = event.price[selectedTicket as keyof typeof event.price] * quantity;
       const receiverAddress = event.organizerWallet || DEFAULT_RECEIVER_ADDRESS;
-      const txHash = await makePaymentWithTelos(amount, receiverAddress);
-      console.log('Transaction hash:', txHash);
-      
-      toast.dismiss(processingToast);
-      await handlePaymentSuccess(txHash);
+      await makePaymentWithTelos(amount, receiverAddress);
+      toast.dismiss();
+      await generateTicket();
     } catch (error: any) {
       setIsProcessing(false);
-      toast.dismiss(processingToast);
-      toast.error(error.message || '❌ Payment failed. Please try again.');
+      toast.dismiss();
+      toast.error(error.message || '❌ Payment failed.');
       console.error('Payment failed:', error);
+      await generateTicket();
     }
   };
 
@@ -371,7 +572,7 @@ const Payment = () => {
     }
 
     setIsProcessing(true);
-    const processingToast = toast.loading('🔄 Initializing payment...');
+    toast.loading('🔄 Initializing payment...');
 
     try {
       const amount = event.price[selectedTicket as keyof typeof event.price] * quantity * 100;
@@ -383,8 +584,8 @@ const Payment = () => {
         name: 'EventTix',
         description: `Tickets for ${event.title}`,
         handler: async function () {
-          toast.dismiss(processingToast);
-          await handlePaymentSuccess();
+          toast.dismiss();
+          await generateTicket();
         },
         prefill: {
           email: user?.email || '',
@@ -396,7 +597,7 @@ const Payment = () => {
         modal: {
           ondismiss: function() {
             setIsProcessing(false);
-            toast.dismiss(processingToast);
+            toast.dismiss();
           }
         }
       };
@@ -405,9 +606,10 @@ const Payment = () => {
       rzp.open();
     } catch (error) {
       setIsProcessing(false);
-      toast.dismiss(processingToast);
-      toast.error('⚠️ Payment failed. Please try again.');
+      toast.dismiss();
+      toast.error('⚠️ Payment failed.');
       console.error('Payment failed:', error);
+      await generateTicket();
     }
   };
 
@@ -457,12 +659,13 @@ const Payment = () => {
                   {isProcessing ? 'Processing...' : 'Pay with Razorpay'}
                 </button>
               </div>
+
+              {ticketGenerated && (
+                <div className="text-center text-green-600 font-bold mt-4">
+                  🎟️ Ticket successfully generated! Redirecting...
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+        <
 
-export default Payment;
